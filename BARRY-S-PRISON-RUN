@@ -1,0 +1,406 @@
+-- BARRY'S PRISON RUN Menu
+-- Вставь в LocalScript (StarterPlayer > StarterPlayerScripts)
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- // НАСТРОЙКИ
+local CHANNEL_URL = "https://youtube.com/@ranoysd?si=Tr-Idx_uD7QM8FRE"
+
+-- // КООРДИНАТЫ AUTO WIN
+local AUTO_WIN_POSITION = Vector3.new(-3340, 970, -720)
+
+-- // ФУНКЦИЯ АВТО-ПОБЕДЫ (ТЕЛЕПОРТ)
+local function autoWinOP()
+    local character = player.Character
+    if not character then
+        warn("[BARRY MENU] Персонаж не найден")
+        return
+    end
+
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then
+        warn("[BARRY MENU] HumanoidRootPart не найден")
+        return
+    end
+
+    -- Телепорт на координаты
+    rootPart.CFrame = CFrame.new(AUTO_WIN_POSITION)
+    print("[BARRY MENU] Телепорт на Auto Win: " .. tostring(AUTO_WIN_POSITION))
+end
+
+-- // ФУНКЦИЯ ПОЛУЧЕНИЯ ВСЕХ ИНСТРУМЕНТОВ
+local function getAllTools()
+    local ShopAssetsFolder = ReplicatedStorage:WaitForChild("ShopAssetsFolder", 10)
+    if not ShopAssetsFolder then
+        warn("[BARRY MENU] ShopAssetsFolder не найден")
+        return
+    end
+
+    local ToolsFolder = ShopAssetsFolder:WaitForChild("ToolsFolder", 5)
+    if not ToolsFolder then
+        warn("[BARRY MENU] ToolsFolder не найден")
+        return
+    end
+
+    local Tools = ToolsFolder:WaitForChild("Tools", 5)
+    if not Tools then
+        warn("[BARRY MENU] Tools не найден")
+        return
+    end
+
+    local AssetRemotes = ShopAssetsFolder:FindFirstChild("AssetRemotes")
+    local SendTool = AssetRemotes and AssetRemotes:FindFirstChild("SendTool")
+
+    if not SendTool then
+        warn("[BARRY MENU] SendTool не найден")
+        return
+    end
+
+    local allTools = {}
+    local function collectTools(folder)
+        for _, item in ipairs(folder:GetChildren()) do
+            if item:IsA("Tool") then
+                table.insert(allTools, item)
+            elseif item:IsA("Folder") then
+                collectTools(item)
+            end
+        end
+    end
+    collectTools(Tools)
+
+    -- Очистка текущих инструментов
+    for _, item in ipairs(player.Backpack:GetChildren()) do
+        if item:IsA("Tool") then item:Destroy() end
+    end
+    if player.Character then
+        for _, item in ipairs(player.Character:GetChildren()) do
+            if item:IsA("Tool") then item:Destroy() end
+        end
+    end
+
+    -- Выдача всех инструментов
+    local batchSize = 5
+    local total = #allTools
+
+    for i = 1, total, batchSize do
+        for j = i, math.min(i + batchSize - 1, total) do
+            local tool = allTools[j]
+            task.spawn(function()
+                pcall(function()
+                    SendTool:FireServer(tool.Name, true)
+                end)
+            end)
+        end
+        task.wait(0.05)
+    end
+
+    task.wait(0.5)
+    print("[BARRY MENU] Получено инструментов: " .. total)
+end
+
+-- // УДАЛЯЕМ СТАРОЕ МЕНЮ (если есть)
+local old = player.PlayerGui:FindFirstChild("BarryMenu")
+if old then old:Destroy() end
+
+-- // СОЗДАЁМ GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "BarryMenu"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- // КНОПКА EX
+local exBtn = Instance.new("TextButton")
+exBtn.Name = "ExBtn"
+exBtn.Size = UDim2.new(0, 50, 0, 50)
+exBtn.Position = UDim2.new(0, 20, 0, 20)
+exBtn.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+exBtn.BorderSizePixel = 0
+exBtn.Text = "EX"
+exBtn.TextColor3 = Color3.fromRGB(255, 59, 59)
+exBtn.TextScaled = true
+exBtn.Font = Enum.Font.GothamBold
+exBtn.Parent = gui
+
+local exCorner = Instance.new("UICorner")
+exCorner.CornerRadius = UDim.new(0, 8)
+exCorner.Parent = exBtn
+
+local exStroke = Instance.new("UIStroke")
+exStroke.Color = Color3.fromRGB(255, 59, 59)
+exStroke.Thickness = 2
+exStroke.Parent = exBtn
+
+-- // ГЛАВНОЕ МЕНЮ
+local menu = Instance.new("Frame")
+menu.Name = "Menu"
+menu.Size = UDim2.new(0, 300, 0, 0)
+menu.Position = UDim2.new(0, 80, 0, 20)
+menu.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+menu.BorderSizePixel = 0
+menu.ClipsDescendants = true
+menu.Visible = false
+menu.Parent = gui
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 10)
+menuCorner.Parent = menu
+
+local menuStroke = Instance.new("UIStroke")
+menuStroke.Color = Color3.fromRGB(255, 59, 59)
+menuStroke.Thickness = 2
+menuStroke.Parent = menu
+
+-- // ЗАГОЛОВОК
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 40)
+header.BackgroundColor3 = Color3.fromRGB(255, 59, 59)
+header.BorderSizePixel = 0
+header.Parent = menu
+
+local headerText = Instance.new("TextLabel")
+headerText.Size = UDim2.new(1, 0, 1, 0)
+headerText.BackgroundTransparency = 1
+headerText.Text = "BARRY'S PRISON RUN"
+headerText.TextColor3 = Color3.fromRGB(255, 255, 255)
+headerText.TextScaled = true
+headerText.Font = Enum.Font.GothamBold
+headerText.Parent = header
+
+-- // ПАНЕЛЬ СТРЕЛОЧЕК
+local arrowBar = Instance.new("Frame")
+arrowBar.Size = UDim2.new(1, 0, 0, 50)
+arrowBar.Position = UDim2.new(0, 0, 0, 40)
+arrowBar.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+arrowBar.BorderSizePixel = 0
+arrowBar.Parent = menu
+
+-- Стрелочка влево
+local prevArrow = Instance.new("TextButton")
+prevArrow.Size = UDim2.new(0, 34, 0, 34)
+prevArrow.Position = UDim2.new(0, 15, 0.5, -17)
+prevArrow.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
+prevArrow.BorderSizePixel = 0
+prevArrow.Text = "<"
+prevArrow.TextColor3 = Color3.fromRGB(255, 59, 59)
+prevArrow.TextScaled = true
+prevArrow.Font = Enum.Font.GothamBold
+prevArrow.Parent = arrowBar
+
+local prevCorner = Instance.new("UICorner")
+prevCorner.CornerRadius = UDim.new(0, 6)
+prevCorner.Parent = prevArrow
+
+local prevStroke = Instance.new("UIStroke")
+prevStroke.Color = Color3.fromRGB(255, 59, 59)
+prevStroke.Parent = prevArrow
+
+-- Название типа
+local typeLabel = Instance.new("TextLabel")
+typeLabel.Size = UDim2.new(0, 150, 1, 0)
+typeLabel.Position = UDim2.new(0.5, -75, 0, 0)
+typeLabel.BackgroundTransparency = 1
+typeLabel.Text = "Тип 1"
+typeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+typeLabel.TextScaled = true
+typeLabel.Font = Enum.Font.GothamBold
+typeLabel.Parent = arrowBar
+
+-- Стрелочка вправо
+local nextArrow = Instance.new("TextButton")
+nextArrow.Size = UDim2.new(0, 34, 0, 34)
+nextArrow.Position = UDim2.new(1, -49, 0.5, -17)
+nextArrow.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
+nextArrow.BorderSizePixel = 0
+nextArrow.Text = ">"
+nextArrow.TextColor3 = Color3.fromRGB(255, 59, 59)
+nextArrow.TextScaled = true
+nextArrow.Font = Enum.Font.GothamBold
+nextArrow.Parent = arrowBar
+
+local nextCorner = Instance.new("UICorner")
+nextCorner.CornerRadius = UDim.new(0, 6)
+nextCorner.Parent = nextArrow
+
+local nextStroke = Instance.new("UIStroke")
+nextStroke.Color = Color3.fromRGB(255, 59, 59)
+nextStroke.Parent = nextArrow
+
+-- // КОНТЕНТ ТИП 1
+local tab1 = Instance.new("Frame")
+tab1.Name = "Tab1"
+tab1.Size = UDim2.new(1, 0, 0, 130)
+tab1.Position = UDim2.new(0, 0, 0, 90)
+tab1.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+tab1.BorderSizePixel = 0
+tab1.Visible = true
+tab1.Parent = menu
+
+local function makeButton(parent, text, yPos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -30, 0, 45)
+    btn.Position = UDim2.new(0, 15, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextScaled = true
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = parent
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 6)
+    c.Parent = btn
+
+    local s = Instance.new("UIStroke")
+    s.Color = Color3.fromRGB(255, 59, 59)
+    s.Parent = btn
+
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- // КНОПКА AUTO WIN OP (телепорт на координаты)
+makeButton(tab1, "Auto win OP", 10, function()
+    print("[BARRY MENU] Auto win OP — телепорт...")
+    local success, err = pcall(autoWinOP)
+    if not success then
+        warn("[BARRY MENU] Ошибка: " .. tostring(err))
+    end
+end)
+
+-- // КНОПКА GET TOOL ALL
+makeButton(tab1, "Get tool all", 65, function()
+    print("[BARRY MENU] Выдаю все инструменты...")
+    local success, err = pcall(getAllTools)
+    if not success then
+        warn("[BARRY MENU] Ошибка: " .. tostring(err))
+    end
+end)
+
+-- // КОНТЕНТ ТИП 2
+local tab2 = Instance.new("Frame")
+tab2.Name = "Tab2"
+tab2.Size = UDim2.new(1, 0, 0, 130)
+tab2.Position = UDim2.new(0, 0, 0, 90)
+tab2.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+tab2.BorderSizePixel = 0
+tab2.Visible = false
+tab2.Parent = menu
+
+-- Рамка канала
+local channelBox = Instance.new("Frame")
+channelBox.Size = UDim2.new(1, -30, 0, 40)
+channelBox.Position = UDim2.new(0, 15, 0, 10)
+channelBox.BackgroundColor3 = Color3.fromRGB(17, 17, 17)
+channelBox.BorderSizePixel = 0
+channelBox.Parent = tab2
+
+local cbCorner = Instance.new("UICorner")
+cbCorner.CornerRadius = UDim.new(0, 6)
+cbCorner.Parent = channelBox
+
+local cbStroke = Instance.new("UIStroke")
+cbStroke.Color = Color3.fromRGB(255, 59, 59)
+cbStroke.Parent = channelBox
+
+local channelText = Instance.new("TextLabel")
+channelText.Size = UDim2.new(1, -10, 1, 0)
+channelText.Position = UDim2.new(0, 5, 0, 0)
+channelText.BackgroundTransparency = 1
+channelText.Text = "YT: RanoYSD"
+channelText.TextColor3 = Color3.fromRGB(255, 85, 85)
+channelText.TextScaled = true
+channelText.Font = Enum.Font.GothamBold
+channelText.Parent = channelBox
+
+-- Кнопка Copy
+local copyBtn = makeButton(tab2, "Copy", 65, function()
+    if setclipboard then
+        setclipboard(CHANNEL_URL)
+        copyBtn.Text = "Скопировано!"
+        task.wait(1.5)
+        copyBtn.Text = "Copy"
+    else
+        copyBtn.Text = "Нет доступа"
+        task.wait(1.5)
+        copyBtn.Text = "Copy"
+    end
+end)
+
+-- // ПЕРЕКЛЮЧЕНИЕ ТИПОВ
+local currentType = 1
+
+local function switchType(t)
+    currentType = t
+    typeLabel.Text = "Тип " .. t
+    tab1.Visible = (t == 1)
+    tab2.Visible = (t == 2)
+end
+
+prevArrow.MouseButton1Click:Connect(function()
+    switchType(currentType == 1 and 2 or 1)
+end)
+
+nextArrow.MouseButton1Click:Connect(function()
+    switchType(currentType == 2 and 1 or 2)
+end)
+
+-- // ОТКРЫТИЕ / ЗАКРЫТИЕ ПО EX
+local isOpen = false
+
+exBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    if isOpen then
+        menu.Visible = true
+        menu.Size = UDim2.new(0, 300, 0, 0)
+        TweenService:Create(menu, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(0, 300, 0, 230)
+        }):Play()
+    else
+        local tween = TweenService:Create(menu, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(0, 300, 0, 0)
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            menu.Visible = false
+        end)
+    end
+end)
+
+-- // ДВИЖЕНИЕ МЕНЮ МЫШКОЙ
+local dragging, dragInput, dragStart, startPos
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = menu.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        menu.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
